@@ -23,6 +23,23 @@ const userSchema = new mongoose.Schema(
         verified:{
             type:Boolean,
             default:false
+        },
+        otpHash: {
+            type: String,
+            select: false
+        },
+        otpExpiresAt: {
+            type: Date,
+            select: false
+        },
+        otpAttempts: {
+            type: Number,
+            default: 0,
+            select: false
+        },
+        otpLastSentAt: {
+            type: Date,
+            select: false
         }
     }
 )

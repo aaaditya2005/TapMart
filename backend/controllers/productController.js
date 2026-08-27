@@ -1,4 +1,4 @@
-const Product = require('../models/productModel');
+const Product = require('../model/Product');
 const cloudinary = require('../config/cloudinary');
 
 const getProducts = async (req, res) => {
@@ -54,7 +54,6 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
     try {
         const { name, description, price, category, stock } = req.body;
-
         const product = await Product.findById(req.params.id);
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
@@ -66,7 +65,10 @@ const updateProduct = async (req, res) => {
         product.price = price || product.price;
         product.category = category || product.category;
         product.stock = stock || product.stock;
-
+        if(req.file) {
+            const result = await cloudinary.uploader.upload(req.file.path);
+            product.imageURL = result.secure_url;
+        }
         const updatedProduct = await product.save();
         res.json(updatedProduct);
     } catch (error) {
@@ -80,7 +82,10 @@ const deleteProduct = async (req, res) => {
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
-
+        if (product.imageURL) {
+            const publicId = product.imageURL.split('/').pop().split('.')[0];
+            await cloudinary.uploader.destroy(publicId);
+        }
         await Product.deleteOne({ _id: req.params.id });
         res.json({ message: 'Product removed' });
     } catch (error) {
