@@ -1,0 +1,48 @@
+model Order {
+  id                String        @id @default(uuid())
+  paymentMethod     PaymentMethod
+  paymentStatus     PaymentStatus @default(pending)
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  receiptId         String?
+  receiptURL        String?
+  subtotal          Float         @default(0.0)
+  taxPrice          Float         @default(0.0)
+  shippingPrice     Float         @default(0.0)
+  totalPrice        Float         @default(0.0)
+  paidAt            DateTime?
+  status            OrderStatus   @default(confirmed)
+  deliveredAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  shippingAddress   ShippingAddress?
+  orderItems        OrderItem[]
+}
+
+model ShippingAddress {
+  id         String @id @default(uuid())
+  address    String
+  city       String
+  postalCode String
+  country    String
+
+  orderId    String @unique
+  order      Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  name      String
+  qty       Int
+  price     Float
+
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+}

@@ -1,4 +1,4 @@
-const User = require('../model/User');
+const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -14,13 +14,21 @@ const generateToken = (id) => {
 
 const createOtp = () => crypto.randomInt(100000, 1000000).toString();
 
-const setOtp = async (user) => {
+const setOtp = async (userId) => {
     const otp = createOtp();
-    user.otpHash = await bcrypt.hash(otp, 10);
-    user.otpExpiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-    user.otpAttempts = 0;
-    user.otpLastSentAt = new Date();
-    await user.save();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const otpExpiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+    const otpLastSentAt = new Date();
+
+    await prisma.user.update({
+        where: { id: userId },
+        data: {
+            otpHash,
+            otpExpiresAt,
+            otpAttempts: 0,
+            otpLastSentAt
+        }
+    });
     return otp;
 };
 
@@ -31,7 +39,8 @@ const sendVerificationOtp = (email, otp) => sendEmail(
 );
 
 const userResponse = (user) => ({
-    _id: user._id,
+    _id: user.id,
+    id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
@@ -41,23 +50,29 @@ const userResponse = (user) => ({
 const registerUser = async (req, res) => {
     const { name, username, email, password } = req.body;
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
-    try{
+    try {
         if ((!name && !username) || !normalizedEmail || typeof password !== 'string' || password.length < 8) {
             return res.status(400).json({ message: 'Name, valid email, and a password of at least 8 characters are required' });
         }
-        const existingUser = await User.findOne({ email: normalizedEmail });
-        if(existingUser){
+        const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+        if (existingUser) {
             if (!existingUser.verified) {
                 return res.status(409).json({ message: 'Account exists but email is not verified', requiresVerification: true });
             }
             return res.status(400).json({ message: 'User already exists' });
         }
         const hashedPassword = await bcrypt.hash(password, 12);
-        const newUser = await User.create({ name: name || username, email: normalizedEmail, password: hashedPassword });
-        const otp = await setOtp(newUser);
+        const newUser = await prisma.user.create({
+            data: {
+                name: name || username,
+                email: normalizedEmail,
+                password: hashedPassword
+            }
+        });
+        const otp = await setOtp(newUser.id);
         await sendVerificationOtp(newUser.email, otp);
         res.status(201).json({ ...userResponse(newUser), requiresVerification: true });
-    }catch(err){
+    } catch (err) {
         console.error('Registration error:', err);
         res.status(500).json({ message: 'Server error' });
     }
@@ -70,7 +85,7 @@ const loginUser = async (req, res) => {
         if (!normalizedEmail || typeof password !== 'string') {
             return res.status(400).json({ message: 'Email and password are required' });
         }
-        const user = await User.findOne({ email: normalizedEmail });
+        const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -82,12 +97,13 @@ const loginUser = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
         res.json({
-            _id: user._id,
+            _id: user.id,
+            id: user.id,
             username: user.name,
             name: user.name,
             email: user.email,
             role: user.role,
-            token: generateToken(user._id)
+            token: generateToken(user.id)
         });
     } catch (err) {
         console.error('Login error:', err);
@@ -100,13 +116,24 @@ const logoutUser = async (req, res) => {
 };
 
 const getAllUsers = async (req, res) => {
-    try{
-        const users = await User.find({}, '-password'); // Exclude password field
-        res.json(users);
-    }catch(err){
+    try {
+        const users = await prisma.user.findMany({
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                verified: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+        const formatted = users.map((u) => ({ ...u, _id: u.id }));
+        res.json(formatted);
+    } catch (err) {
         res.status(500).json({ message: 'Server error' });
     }
-}
+};
 
 const verifyEmail = async (req, res) => {
     const { email, otp } = req.body;
@@ -114,7 +141,7 @@ const verifyEmail = async (req, res) => {
     const submittedOtp = typeof otp === 'string' ? otp.trim() : String(otp || '').trim();
 
     try {
-        const user = await User.findOne({ email: normalizedEmail }).select('+otpHash +otpExpiresAt +otpAttempts');
+        const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -124,7 +151,7 @@ const verifyEmail = async (req, res) => {
         if (!/^\d{6}$/.test(submittedOtp)) {
             return res.status(400).json({ message: 'OTP must be a 6-digit code' });
         }
-        if (!user.otpHash || !user.otpExpiresAt || user.otpExpiresAt.getTime() < Date.now()) {
+        if (!user.otpHash || !user.otpExpiresAt || new Date(user.otpExpiresAt).getTime() < Date.now()) {
             return res.status(400).json({ message: 'OTP is expired. Request a new code' });
         }
         if (user.otpAttempts >= MAX_OTP_ATTEMPTS) {
@@ -133,19 +160,25 @@ const verifyEmail = async (req, res) => {
 
         const isValidOtp = await bcrypt.compare(submittedOtp, user.otpHash);
         if (!isValidOtp) {
-            user.otpAttempts += 1;
-            await user.save();
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { otpAttempts: user.otpAttempts + 1 }
+            });
             return res.status(400).json({ message: 'Invalid OTP' });
         }
 
-        user.verified = true;
-        user.otpHash = undefined;
-        user.otpExpiresAt = undefined;
-        user.otpAttempts = 0;
-        user.otpLastSentAt = undefined;
-        await user.save();
+        const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                verified: true,
+                otpHash: null,
+                otpExpiresAt: null,
+                otpAttempts: 0,
+                otpLastSentAt: null
+            }
+        });
 
-        res.json({ message: 'Email verified successfully', ...userResponse(user), token: generateToken(user._id) });
+        res.json({ message: 'Email verified successfully', ...userResponse(updatedUser), token: generateToken(updatedUser.id) });
     } catch (err) {
         console.error('Email verification error:', err);
         res.status(500).json({ message: 'Server error' });
@@ -155,13 +188,13 @@ const verifyEmail = async (req, res) => {
 const resendVerificationOtp = async (req, res) => {
     const normalizedEmail = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     try {
-        const user = await User.findOne({ email: normalizedEmail }).select('+otpLastSentAt');
+        const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
         if (!user) return res.status(404).json({ message: 'User not found' });
         if (user.verified) return res.status(400).json({ message: 'Email is already verified' });
-        if (user.otpLastSentAt && Date.now() - user.otpLastSentAt.getTime() < OTP_RESEND_COOLDOWN_MS) {
+        if (user.otpLastSentAt && Date.now() - new Date(user.otpLastSentAt).getTime() < OTP_RESEND_COOLDOWN_MS) {
             return res.status(429).json({ message: 'Please wait before requesting another OTP' });
         }
-        const otp = await setOtp(user);
+        const otp = await setOtp(user.id);
         await sendVerificationOtp(user.email, otp);
         res.json({ message: 'A new verification OTP has been sent' });
     } catch (err) {

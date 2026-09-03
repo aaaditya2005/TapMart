@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/aaaditya2005/TapMart/issues"
   },
-  "homepage": "https://github.com/aaaditya2005/TapMart#readme"
+  "homepage": "https://github.com/aaaditya2005/TapMart#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
 }

@@ -1,6 +1,7 @@
 import logo from '../assets/tapmart-logo.svg'
+import './Brand.css'
 
-function Brand() {
+const Brand = () => {
   return (
     <a className="brand" href="/" aria-label="TapMart home">
       <img src={logo} alt="TapMart logo" />

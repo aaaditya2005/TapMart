@@ -1,16 +1,18 @@
-const Order = require('../model/Order');
-const Product = require('../model/Product');
-const User = require('../model/User');
+const prisma = require('../config/prisma');
 
 const getAdminStats = async (req, res) => {
     try {
-        const totalOrders = await Order.countDocuments({ role: 'user' });
-        const totalUsers = await User.countDocuments();
-        const totalProducts = await Product.countDocuments();
+        const [totalOrders, totalUsers, totalProducts, aggregateRevenue] = await Promise.all([
+            prisma.order.count(),
+            prisma.user.count(),
+            prisma.product.count(),
+            prisma.order.aggregate({
+                where: { status: 'delivered' },
+                _sum: { totalPrice: true }
+            })
+        ]);
 
-        const orders = await Order.find({});
-
-        const totalRevenue = orders.reduce((acc, order) => acc + order.totalPrice, 0);
+        const totalRevenue = aggregateRevenue._sum.totalPrice || 0;
 
         res.json({ totalOrders, totalUsers, totalProducts, totalRevenue });
     } catch (error) {

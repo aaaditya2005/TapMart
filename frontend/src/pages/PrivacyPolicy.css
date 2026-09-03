@@ -1,0 +1,55 @@
+.privacy-page {
+  width: min(860px, calc(100% - 12vw));
+  margin: 0 auto;
+  padding: 72px 0 96px;
+}
+
+.privacy-page h1 {
+  margin: 0;
+  color: #1f2937;
+  font-size: clamp(2.3rem, 5vw, 4rem);
+  line-height: 1.1;
+}
+
+.privacy-page .policy-intro {
+  max-width: 720px;
+  margin: 24px 0 0;
+  color: #4b5563;
+  font-size: 1.1rem;
+  line-height: 1.7;
+}
+
+.privacy-page .policy-sections {
+  display: grid;
+  gap: 30px;
+  margin-top: 56px;
+}
+
+.privacy-page .policy-sections section {
+  padding-top: 24px;
+  border-top: 1px solid #fed7aa;
+}
+
+.privacy-page .policy-sections h2 {
+  margin: 0 0 10px;
+  color: #1f2937;
+  font-size: 1.2rem;
+}
+
+.privacy-page .policy-sections p {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.7;
+}
+
+.privacy-page a {
+  color: #ea580c;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .privacy-page {
+    width: auto;
+    padding: 56px 20px 72px;
+  }
+}
