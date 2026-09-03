@@ -1,16 +1,49 @@
 const nodemailer = require('nodemailer');
 
+const sendWithBrevo = async (to, subject, text, apiKey, senderEmail, senderName) => {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+            accept: 'application/json',
+            'api-key': apiKey,
+            'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+            sender: { email: senderEmail, name: senderName },
+            to: [{ email: to }],
+            subject,
+            textContent: text
+        })
+    });
+
+    if (!response.ok) {
+        const providerError = await response.text();
+        const error = new Error(`Brevo API ${response.status}: ${providerError}`);
+        error.code = `BREVO_${response.status}`;
+        throw error;
+    }
+};
+
 const sendEmail = async (to, subject, text) => {
     const emailUser = (process.env.EMAIL_USER || '').trim();
     const emailPass = (process.env.EMAIL_PASS || '').trim();
+    const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
+    const senderEmail = (process.env.EMAIL_FROM || emailUser).trim();
+    const senderName = (process.env.EMAIL_FROM_NAME || 'TapMart').trim();
 
-    if (!emailUser || !emailPass) {
-        const errorMessage = 'EMAIL_USER or EMAIL_PASS is missing in .env';
+    if (!brevoApiKey && (!emailUser || !emailPass)) {
+        const errorMessage = 'Configure BREVO_API_KEY or both EMAIL_USER and EMAIL_PASS';
         console.error(`[Email] Failed: ${errorMessage}. Recipient: ${to}. Subject: ${subject}`);
         return { success: false, error: errorMessage };
     }
 
     try {
+        if (brevoApiKey) {
+            await sendWithBrevo(to, subject, text, brevoApiKey, senderEmail, senderName);
+            console.log(`Email successfully sent with Brevo to ${to} (${subject})`);
+            return { success: true };
+        }
+
         const transporter = nodemailer.createTransport({
             host: process.env.EMAIL_HOST || 'smtp.gmail.com',
             port: Number(process.env.EMAIL_PORT || 587),
@@ -25,7 +58,7 @@ const sendEmail = async (to, subject, text) => {
         });
 
         await transporter.sendMail({
-            from: `"TapMart" <${emailUser}>`,
+            from: `"${senderName}" <${emailUser}>`,
             to,
             subject,
             text
