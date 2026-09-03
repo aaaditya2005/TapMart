@@ -49,7 +49,7 @@ function AdminDashboard() {
         setEditingStock(stockMap)
       }
     })
-  }, [fetchAdminData, setAdminStats, setAdminOrders])
+  }, [])
 
   const loadDashboard = async () => {
     try {
