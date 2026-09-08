@@ -1,7 +1,14 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
+function optionalAuthHeaders() {
+  const token = localStorage.getItem('tapmartToken')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export async function getProducts() {
-  const response = await fetch(`${API_URL}/products`)
+  const response = await fetch(`${API_URL}/products`, {
+    headers: optionalAuthHeaders(),
+  })
 
   if (!response.ok) {
     throw new Error('Unable to load products right now.')
@@ -10,8 +17,20 @@ export async function getProducts() {
   return response.json()
 }
 
+export async function getAdminProducts() {
+  const response = await fetch(`${API_URL}/products/admin`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem('tapmartToken') || ''}` },
+  })
+
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.message || 'Unable to load admin products.')
+  return data
+}
+
 export async function getProduct(productId) {
-  const response = await fetch(`${API_URL}/products/${productId}`)
+  const response = await fetch(`${API_URL}/products/${productId}`, {
+    headers: optionalAuthHeaders(),
+  })
 
   if (!response.ok) {
     throw new Error('Unable to load this product right now.')

@@ -19,6 +19,8 @@ import MyOrders from './pages/MyOrders'
 import OrderDetails from './pages/OrderDetails'
 import AdminRoute from './components/AdminRoute'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import PublicOnlyRoute from './components/PublicOnlyRoute'
+import CustomerRoute from './components/CustomerRoute'
 import { StoreProvider } from './context/StoreContext'
 
 const App = () => {
@@ -30,16 +32,16 @@ const App = () => {
           <main className="app-main-content">
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/products/:productId" element={<ProductDetails />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-              <Route path="/order-success" element={<ProtectedRoute><OrderSuccess /></ProtectedRoute>} />
-              <Route path="/orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
-              <Route path="/orders/:orderId" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
+              <Route path="/products" element={<CustomerRoute><Products /></CustomerRoute>} />
+              <Route path="/products/:productId" element={<CustomerRoute><ProductDetails /></CustomerRoute>} />
+              <Route path="/cart" element={<CustomerRoute><Cart /></CustomerRoute>} />
+              <Route path="/checkout" element={<ProtectedRoute><CustomerRoute><Checkout /></CustomerRoute></ProtectedRoute>} />
+              <Route path="/order-success" element={<ProtectedRoute><CustomerRoute><OrderSuccess /></CustomerRoute></ProtectedRoute>} />
+              <Route path="/orders" element={<ProtectedRoute><CustomerRoute><MyOrders /></CustomerRoute></ProtectedRoute>} />
+              <Route path="/orders/:orderId" element={<ProtectedRoute><CustomerRoute><OrderDetails /></CustomerRoute></ProtectedRoute>} />
               <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
+              <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+              <Route path="/signup" element={<PublicOnlyRoute><Signup /></PublicOnlyRoute>} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />

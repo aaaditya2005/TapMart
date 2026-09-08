@@ -214,7 +214,15 @@ const getOrderById = async (req, res) => {
 
 const updateOrderStatus = async (req, res) => {
     try {
-        const allowedStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+        const nextStatuses = {
+            pending: ['confirmed', 'cancelled'],
+            confirmed: ['processing', 'cancelled'],
+            processing: ['shipped'],
+            shipped: ['delivered'],
+            delivered: [],
+            cancelled: []
+        };
+        const allowedStatuses = Object.keys(nextStatuses);
         const allowedPaymentStatuses = ['pending', 'paid', 'failed', 'refunded'];
         const { status, paymentStatus } = req.body;
 
@@ -237,6 +245,12 @@ const updateOrderStatus = async (req, res) => {
         let order = await prisma.order.findUnique({ where: { id: req.params.id } });
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
+        }
+
+        if (status && status !== order.status && !nextStatuses[order.status].includes(status)) {
+            return res.status(409).json({
+                message: `Order status cannot move from ${order.status} to ${status}`
+            });
         }
 
         if (status === 'delivered' && order.paymentMethod === 'cash_on_delivery') {

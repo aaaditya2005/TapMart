@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react'
 import { formatCurrency } from '../../utils/currency'
-import { getAdminStats, getAllOrders, getProducts, updateOrderStatus, createProduct, updateProduct, deleteProduct } from '../../services/api'
+import { getAdminStats, getAllOrders, getAdminProducts, updateOrderStatus, createProduct, updateProduct, deleteProduct } from '../../services/api'
 import { useStore } from '../../context/StoreContext'
 import './AdminDashboard.css'
 
-const statuses = ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
+const nextStatuses = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['processing', 'cancelled'],
+  processing: ['shipped'],
+  shipped: ['delivered'],
+  delivered: [],
+  cancelled: [],
+}
 const categories = ['Electronics', 'Clothing', 'Footwear', 'Accessories', 'Home & Kitchen', 'Beauty', 'Sports', 'Other']
 
 function AdminDashboard() {
@@ -56,7 +63,7 @@ function AdminDashboard() {
       const [statsData, ordersData, productsData] = await Promise.all([
         getAdminStats(),
         getAllOrders(),
-        getProducts()
+        getAdminProducts()
       ])
       setStats(statsData)
       setOrders(ordersData)
@@ -511,7 +518,7 @@ function AdminDashboard() {
                         disabled={updatingId === order._id}
                         onChange={(event) => changeStatus(order._id, event.target.value)}
                       >
-                        {statuses.map((status) => (
+                        {[order.status, ...(nextStatuses[order.status] || [])].map((status) => (
                           <option key={status} value={status}>{status}</option>
                         ))}
                       </select>

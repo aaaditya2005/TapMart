@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { getProducts, getMyOrders, getAdminStats, getAllOrders } from '../services/api'
+import { getProducts, getAdminProducts, getMyOrders, getAdminStats, getAllOrders } from '../services/api'
 
 const StoreContext = createContext()
 
@@ -48,7 +48,7 @@ export const StoreProvider = ({ children }) => {
       const [statsData, ordersData, productsData] = await Promise.all([
         getAdminStats(),
         getAllOrders(),
-        getProducts()
+        getAdminProducts()
       ])
       setAdminStats(statsData)
       setAdminOrders(ordersData)
